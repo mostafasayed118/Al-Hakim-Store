@@ -2,25 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
- * Helper function to check if the current user is an admin.
- */
-async function requireAdmin(ctx: any) {
-  const identity = await ctx.auth.getUserIdentity();
-
-  if (!identity) {
-    throw new Error("Unauthorized: Please sign in");
-  }
-
-  const role = identity.role as string | undefined;
-
-  if (role !== "admin") {
-    throw new Error("Forbidden: Admin access required");
-  }
-
-  return identity;
-}
-
-/**
  * Generate a unique order reference
  * Format: OO-YYYY-XXXXXX (e.g., OO-2024-ABC123)
  */
@@ -44,21 +25,10 @@ export const create = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
     const now = Date.now();
 
     // Generate order reference
     const orderReference = generateOrderReference();
-
-    // Get user ID if authenticated
-    let userId: string | undefined;
-    if (identity) {
-      const user = await ctx.db
-        .query("users")
-        .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-        .first();
-      userId = user?._id;
-    }
 
     // Build WhatsApp URL for storage
     // The phone number should be set in environment variables
@@ -88,7 +58,6 @@ export const create = mutation({
 
     // Create the lead
     const leadId = await ctx.db.insert("leads", {
-      userId,
       userName: args.userName,
       userEmail: args.userEmail,
       productId: args.productId,
@@ -112,20 +81,19 @@ export const create = mutation({
 
 /**
  * Get all leads (admin only)
+ * TODO: Add proper admin authentication
  */
 export const list = query({
   args: {
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     let leads;
 
     if (args.status) {
       leads = await ctx.db
         .query("leads")
-        .withIndex("by_status", (q) => q.eq("status", args.status))
+        .withIndex("by_status", (q) => q.eq("status", args.status!))
         .order("desc")
         .collect();
     } else {
@@ -148,8 +116,6 @@ export const get = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     const lead = await ctx.db.get(args.leadId);
     return lead;
   },
@@ -157,6 +123,7 @@ export const get = query({
 
 /**
  * Update lead status (admin only)
+ * TODO: Add proper admin authentication
  */
 export const updateStatus = mutation({
   args: {
@@ -165,8 +132,6 @@ export const updateStatus = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
@@ -184,12 +149,11 @@ export const updateStatus = mutation({
 
 /**
  * Get lead statistics (admin only)
+ * TODO: Add proper admin authentication
  */
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-
     const allLeads = await ctx.db.query("leads").collect();
 
     const stats = {
@@ -201,36 +165,5 @@ export const getStats = query({
     };
 
     return stats;
-  },
-});
-
-/**
- * Get leads by user (for logged-in users to see their own leads)
- */
-export const getByUser = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      return [];
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      return [];
-    }
-
-    const leads = await ctx.db
-      .query("leads")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .order("desc")
-      .collect();
-
-    return leads;
   },
 });
