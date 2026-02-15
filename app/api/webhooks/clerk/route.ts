@@ -78,7 +78,11 @@ export async function POST(req: Request) {
 
       case "user.deleted": {
         const { id } = evt.data;
-        
+
+        if (!id) {
+          return new Response("Error: Missing ID", { status: 400 });
+        }
+
         await convex.mutation(api.users.deleteUser, {
           clerkId: id,
         });
