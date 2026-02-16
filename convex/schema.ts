@@ -31,12 +31,11 @@ export default defineSchema({
     price: v.number(), // Store in cents or smallest currency unit
 
     // Image stored in Convex File Storage
-    imageStorageId: v.optional(v.id("_storage")),
-    imageUrl: v.optional(v.string()), // Cached URL for display
+    storageId: v.optional(v.id("_storage")),
 
     // Product details
     size: v.optional(v.string()), // e.g., "250ml", "500ml", "1L"
-    stock: v.optional(v.number()), // Optional inventory tracking
+    stock: v.optional(v.number()), // Inventory tracking (optional for backward compatibility)
     isActive: v.boolean(), // Soft delete / visibility toggle
 
     // Timestamps
@@ -44,7 +43,44 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_active", ["isActive"]),
 
-  // Leads / Draft Orders table
+  // Orders table - tracks actual orders with stock reservation
+  orders: defineTable({
+    // Product reference
+    productId: v.id("products"),
+    productName: v.string(),
+    productPrice: v.number(),
+    quantity: v.number(), // Number of items ordered
+
+    // User reference (if logged in)
+    userId: v.optional(v.id("users")),
+    userName: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+
+    // Order status
+    status: v.union(
+      v.literal("pending"),    // Order placed, awaiting processing
+      v.literal("confirmed"),  // Order confirmed by admin
+      v.literal("shipped"),    // Order shipped
+      v.literal("delivered"),  // Order delivered
+      v.literal("cancelled")   // Order cancelled (stock restored)
+    ),
+
+    // Order reference (human-readable)
+    orderReference: v.string(), // e.g., "ORD-2024-ABC123"
+
+    // Notes
+    notes: v.optional(v.string()),
+
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Leads / Draft Orders table (WhatsApp click tracking)
   leads: defineTable({
     // Reference to user (if logged in)
     userId: v.optional(v.id("users")),

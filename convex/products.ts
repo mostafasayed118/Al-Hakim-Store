@@ -1,8 +1,10 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./utils";
 
 /**
  * Get all active products (public query - no auth required)
+ * Generates signed URLs for product images
  */
 export const list = query({
   args: {},
@@ -13,7 +15,29 @@ export const list = query({
       .order("desc")
       .collect();
 
-    return products;
+    // Generate signed URLs for each product's image
+    const productsWithUrls = await Promise.all(
+      products.map(async (product) => {
+        let imageUrl: string | null = null;
+
+        // If product has a storage ID, generate a fresh signed URL
+        if (product.storageId) {
+          try {
+            const url = await ctx.storage.getUrl(product.storageId);
+            imageUrl = url;
+          } catch (error) {
+            console.error("Error generating image URL:", error);
+          }
+        }
+
+        return {
+          ...product,
+          imageUrl,
+        };
+      })
+    );
+
+    return productsWithUrls;
   },
 });
 
@@ -26,55 +50,88 @@ export const get = query({
   },
   handler: async (ctx, args) => {
     const product = await ctx.db.get(args.productId);
-    return product;
+
+    if (!product) return null;
+
+    // Generate signed URL for the image
+    let imageUrl: string | null = null;
+    if (product.storageId) {
+      try {
+        const url = await ctx.storage.getUrl(product.storageId);
+        imageUrl = url;
+      } catch (error) {
+        console.error("Error generating image URL:", error);
+      }
+    }
+
+    return {
+      ...product,
+      imageUrl,
+    };
   },
 });
 
 /**
  * Get all products including inactive ones (admin only)
- * TODO: Add proper admin authentication
  */
 export const listAll = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const products = await ctx.db
       .query("products")
       .order("desc")
       .collect();
 
-    return products;
+    // Generate signed URLs for each product's image
+    const productsWithUrls = await Promise.all(
+      products.map(async (product) => {
+        let imageUrl: string | null = null;
+
+        if (product.storageId) {
+          try {
+            const url = await ctx.storage.getUrl(product.storageId);
+            imageUrl = url;
+          } catch (error) {
+            console.error("Error generating image URL:", error);
+          }
+        }
+
+        return {
+          ...product,
+          imageUrl,
+        };
+      })
+    );
+
+    return productsWithUrls;
   },
 });
 
 /**
  * Create a new product (admin only)
- * TODO: Add proper admin authentication
+ * Accepts storageId from file upload
  */
 export const create = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
     price: v.number(),
-    imageStorageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.id("_storage")),
     size: v.optional(v.string()),
-    stock: v.optional(v.number()),
+    stock: v.number(),
   },
   handler: async (ctx, args) => {
-    const now = Date.now();
+    await requireAdmin(ctx);
 
-    // Generate image URL if storage ID is provided
-    let imageUrl: string | undefined;
-    if (args.imageStorageId) {
-      const url = await ctx.storage.getUrl(args.imageStorageId);
-      imageUrl = url ?? undefined;
-    }
+    const now = Date.now();
 
     const productId = await ctx.db.insert("products", {
       name: args.name,
       description: args.description,
       price: args.price,
-      imageStorageId: args.imageStorageId,
-      imageUrl,
+      storageId: args.storageId,
       size: args.size,
       stock: args.stock,
       isActive: true,
@@ -88,7 +145,6 @@ export const create = mutation({
 
 /**
  * Update an existing product (admin only)
- * TODO: Add proper admin authentication
  */
 export const update = mutation({
   args: {
@@ -96,12 +152,14 @@ export const update = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     price: v.optional(v.number()),
-    imageStorageId: v.optional(v.id("_storage")),
+    storageId: v.optional(v.id("_storage")),
     size: v.optional(v.string()),
     stock: v.optional(v.number()),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const { productId, ...updates } = args;
 
     // Get existing product
@@ -124,13 +182,8 @@ export const update = mutation({
     if (updates.isActive !== undefined) updateData.isActive = updates.isActive;
 
     // Handle image update
-    if (updates.imageStorageId !== undefined) {
-      updateData.imageStorageId = updates.imageStorageId;
-      if (updates.imageStorageId) {
-        updateData.imageUrl = await ctx.storage.getUrl(updates.imageStorageId);
-      } else {
-        updateData.imageUrl = undefined;
-      }
+    if (updates.storageId !== undefined) {
+      updateData.storageId = updates.storageId;
     }
 
     await ctx.db.patch(productId, updateData);
@@ -148,6 +201,8 @@ export const remove = mutation({
     productId: v.id("products"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const product = await ctx.db.get(args.productId);
     if (!product) {
       throw new Error("Product not found");
@@ -172,14 +227,16 @@ export const permanentDelete = mutation({
     productId: v.id("products"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const product = await ctx.db.get(args.productId);
     if (!product) {
       throw new Error("Product not found");
     }
 
     // Delete associated image from storage if exists
-    if (product.imageStorageId) {
-      await ctx.storage.delete(product.imageStorageId);
+    if (product.storageId) {
+      await ctx.storage.delete(product.storageId);
     }
 
     // Permanently delete the product
@@ -190,12 +247,108 @@ export const permanentDelete = mutation({
 });
 
 /**
- * Generate upload URL for product images (admin only)
+ * Generate upload URL for product images
  * Returns a URL that can be used to upload an image to Convex storage
  */
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Update stock for a product (admin only)
+ */
+export const updateStock = mutation({
+  args: {
+    productId: v.id("products"),
+    stock: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const product = await ctx.db.get(args.productId);
+    if (!product) {
+      throw new Error("المنتج غير موجود");
+    }
+
+    if (args.stock < 0) {
+      throw new Error("المخزون لا يمكن أن يكون سالباً");
+    }
+
+    await ctx.db.patch(args.productId, {
+      stock: args.stock,
+      updatedAt: Date.now(),
+    });
+
+    return args.productId;
+  },
+});
+
+/**
+ * Get products with stock information (public query)
+ * Returns products with current stock count
+ */
+export const getWithStock = query({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("desc")
+      .collect();
+
+    // Generate signed URLs for each product's image
+    const productsWithUrls = await Promise.all(
+      products.map(async (product) => {
+        let imageUrl: string | null = null;
+
+        if (product.storageId) {
+          try {
+            const url = await ctx.storage.getUrl(product.storageId);
+            imageUrl = url;
+          } catch (error) {
+            console.error("Error generating image URL:", error);
+          }
+        }
+
+        return {
+          ...product,
+          imageUrl,
+          inStock: (product.stock ?? 0) > 0,
+        };
+      })
+    );
+
+    return productsWithUrls;
+  },
+});
+
+/**
+ * Get stock statistics (admin only)
+ */
+export const getStockStats = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    const stats = {
+      totalProducts: products.length,
+      totalStock: products.reduce((sum, p) => sum + (p.stock ?? 0), 0),
+      outOfStock: products.filter((p) => (p.stock ?? 0) === 0).length,
+      lowStock: products.filter((p) => {
+        const stock = p.stock ?? 0;
+        return stock > 0 && stock <= 5;
+      }).length,
+      inStock: products.filter((p) => (p.stock ?? 0) > 5).length,
+    };
+
+    return stats;
   },
 });

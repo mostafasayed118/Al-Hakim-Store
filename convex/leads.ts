@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./utils";
 
 /**
  * Generate a unique order reference
@@ -34,24 +35,24 @@ export const create = mutation({
     // The phone number should be set in environment variables
     const phoneNumber = process.env.WHATSAPP_NUMBER?.replace(/[\+\s]/g, "") || "";
 
-    // Build the message
+    // Build the message in Egyptian Arabic
     const messageLines = [
-      ` olive oil New Order Request`,
+      `سلام عليكم، في طلب جديد على المنتج`,
       ``,
-      `Product: ${args.productName}`,
-      `Price: ${(args.productPrice / 100).toFixed(2)} MAD`,
-      `Reference: ${orderReference}`,
+      `المنتج: ${args.productName}`,
+      `السعر: ${(args.productPrice / 100).toFixed(2)} جنيه`,
+      `رقم الطلب: ${orderReference}`,
     ];
 
     if (args.userName) {
-      messageLines.push(`Customer Name: ${args.userName}`);
+      messageLines.push(`اسم العميل: ${args.userName}`);
     }
 
     if (args.userEmail) {
-      messageLines.push(`Customer Email: ${args.userEmail}`);
+      messageLines.push(`البريد الإلكتروني: ${args.userEmail}`);
     }
 
-    messageLines.push(``, `I would like to order this product.`);
+    messageLines.push(``, `العميل يريد طلب هذا المنتج.`);
 
     const message = encodeURIComponent(messageLines.join("\n"));
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
@@ -81,13 +82,14 @@ export const create = mutation({
 
 /**
  * Get all leads (admin only)
- * TODO: Add proper admin authentication
  */
 export const list = query({
   args: {
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     let leads;
 
     if (args.status) {
@@ -116,6 +118,8 @@ export const get = query({
     leadId: v.id("leads"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const lead = await ctx.db.get(args.leadId);
     return lead;
   },
@@ -123,7 +127,6 @@ export const get = query({
 
 /**
  * Update lead status (admin only)
- * TODO: Add proper admin authentication
  */
 export const updateStatus = mutation({
   args: {
@@ -132,6 +135,8 @@ export const updateStatus = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
@@ -149,11 +154,12 @@ export const updateStatus = mutation({
 
 /**
  * Get lead statistics (admin only)
- * TODO: Add proper admin authentication
  */
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const allLeads = await ctx.db.query("leads").collect();
 
     const stats = {
