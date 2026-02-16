@@ -12,7 +12,7 @@ export default function Home() {
   const { user } = useUser();
   // Use getWithStock for real-time stock updates
   const products = useQuery(api.products.getWithStock);
-  const createOrder = useMutation(api.orders.create);
+  const createLead = useMutation(api.leads.create);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,10 +35,11 @@ export default function Home() {
     setLoadingProductId(product._id);
 
     try {
-      // Create order and decrement stock (real-time)
-      const result = await createOrder({
+      // Create lead in database first (before redirecting to WhatsApp)
+      const result = await createLead({
         productId: product._id,
-        quantity: 1,
+        productName: product.name,
+        productPrice: product.price,
         userName: user?.fullName || undefined,
         userEmail: user?.primaryEmailAddress?.emailAddress || undefined,
       });
@@ -47,10 +48,10 @@ export default function Home() {
       const message = `سلام عليكم، أنا عايز أطلب المنتج ده: ${product.name} - بسعر: ${(product.price / 100).toFixed(2)} جنية - رقم الطلب: ${result.orderReference}`;
       const phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '201154580512';
 
-      // Redirect to WhatsApp
-      window.location.href = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+      // ONLY redirect to WhatsApp after lead is successfully created
+      window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`, '_blank');
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('Error creating lead:', error);
       setError(error instanceof Error ? error.message : 'حدث خطأ، من فضلك حاول مرة أخرى.');
     } finally {
       setLoadingProductId(null);

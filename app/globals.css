@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Fix for select dropdown styling - ensure white background and dark text */
+select {
+  background-color: white !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+select option {
+  background-color: white !important;
+  color: #111827 !important;
+}

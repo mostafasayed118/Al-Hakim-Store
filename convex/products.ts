@@ -121,6 +121,7 @@ export const create = mutation({
     storageId: v.optional(v.id("_storage")),
     size: v.optional(v.string()),
     stock: v.number(),
+    stockUnit: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -134,6 +135,7 @@ export const create = mutation({
       storageId: args.storageId,
       size: args.size,
       stock: args.stock,
+      stockUnit: args.stockUnit || "قطعة", // Default to piece in Arabic
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -155,6 +157,7 @@ export const update = mutation({
     storageId: v.optional(v.id("_storage")),
     size: v.optional(v.string()),
     stock: v.optional(v.number()),
+    stockUnit: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -179,6 +182,7 @@ export const update = mutation({
     if (updates.price !== undefined) updateData.price = updates.price;
     if (updates.size !== undefined) updateData.size = updates.size;
     if (updates.stock !== undefined) updateData.stock = updates.stock;
+    if (updates.stockUnit !== undefined) updateData.stockUnit = updates.stockUnit;
     if (updates.isActive !== undefined) updateData.isActive = updates.isActive;
 
     // Handle image update
@@ -231,7 +235,7 @@ export const permanentDelete = mutation({
 
     const product = await ctx.db.get(args.productId);
     if (!product) {
-      throw new Error("Product not found");
+      throw new Error("المنتج غير موجود");
     }
 
     // Delete associated image from storage if exists
@@ -350,5 +354,95 @@ export const getStockStats = query({
     };
 
     return stats;
+  },
+});
+
+/**
+ * Delete a product (admin only)
+ * This is an alias for the remove mutation for clearer naming
+ * Performs a soft delete by setting isActive to false
+ */
+export const deleteProduct = mutation({
+  args: {
+    productId: v.id("products"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const product = await ctx.db.get(args.productId);
+    if (!product) {
+      throw new Error("المنتج غير موجود");
+    }
+
+    // Soft delete by setting isActive to false
+    await ctx.db.patch(args.productId, {
+      isActive: false,
+      updatedAt: Date.now(),
+    });
+
+    return args.productId;
+  },
+});
+
+/**
+ * Toggle product active status (admin only)
+ * Switches between active and inactive
+ */
+export const toggleProductActive = mutation({
+  args: {
+    productId: v.id("products"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const product = await ctx.db.get(args.productId);
+    if (!product) {
+      throw new Error("المنتج غير موجود");
+    }
+
+    // Toggle isActive status
+    const newStatus = !product.isActive;
+    
+    await ctx.db.patch(args.productId, {
+      isActive: newStatus,
+      updatedAt: Date.now(),
+    });
+
+    return { productId: args.productId, isActive: newStatus };
+  },
+});
+
+/**
+ * Check if a product name already exists (public query)
+ * Used for real-time validation when creating or editing products
+ * @param name - The product name to check
+ * @param excludeId - Optional product ID to exclude from the check (for editing)
+ * @returns boolean - true if the name exists, false otherwise
+ */
+export const checkProductName = query({
+  args: {
+    name: v.string(),
+    excludeId: v.optional(v.id("products")),
+  },
+  handler: async (ctx, args) => {
+    const normalizedName = args.name.trim().toLowerCase();
+    
+    // Query all active products
+    const products = await ctx.db
+      .query("products")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+    
+    // Check if any product has the same name (case-insensitive)
+    const exists = products.some((product) => {
+      const productName = product.name.trim().toLowerCase();
+      // If excludeId is provided, skip that product
+      if (args.excludeId && product._id === args.excludeId) {
+        return false;
+      }
+      return productName === normalizedName;
+    });
+    
+    return exists;
   },
 });
