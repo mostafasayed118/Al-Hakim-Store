@@ -17,19 +17,19 @@ export default function Navbar() {
     <nav className="bg-green-800 text-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo / Brand */}
+          {/* Logo / Brand - On Right for RTL */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <span className="text-xl font-bold tracking-tight">متجر الحكيم</span>
             <Leaf className="h-8 w-8 text-green-200" />
-            <span className="text-xl font-bold tracking-tight">Al-Hakim Store</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - On Left for RTL */}
           <div className="hidden md:flex items-center gap-6">
             <Link 
               href="/" 
               className="text-green-100 hover:text-white transition-colors font-medium"
             >
-              Shop
+              الرئيسية
             </Link>
             
             {isAdmin && (
@@ -37,23 +37,23 @@ export default function Navbar() {
                 href="/admin" 
                 className="text-green-200 hover:text-white transition-colors font-medium bg-green-700 px-3 py-1.5 rounded-lg"
               >
-                Dashboard
+                لوحة التحكم
               </Link>
             )}
 
-            <div className="flex items-center gap-3 ml-4">
+            <div className="flex items-center gap-3 mr-4">
               {!isLoaded ? (
                 <div className="h-8 w-8 animate-pulse bg-green-600 rounded-full" />
               ) : !isSignedIn ? (
                 <>
                   <SignInButton mode="modal">
                     <button className="text-green-100 hover:text-white transition-colors font-medium">
-                      Sign In
+                      تسجيل دخول
                     </button>
                   </SignInButton>
                   <SignUpButton mode="modal">
                     <button className="bg-white text-green-800 px-4 py-2 rounded-lg font-semibold hover:bg-green-50 transition-colors">
-                      Sign Up
+                      إنشاء حساب
                     </button>
                   </SignUpButton>
                 </>
@@ -82,7 +82,7 @@ export default function Navbar() {
               className="block text-green-100 hover:text-white transition-colors font-medium py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Shop
+              الرئيسية
             </Link>
             
             {isAdmin && (
@@ -91,7 +91,7 @@ export default function Navbar() {
                 className="block text-green-200 hover:text-white transition-colors font-medium py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Dashboard
+                لوحة التحكم
               </Link>
             )}
 
@@ -99,20 +99,20 @@ export default function Navbar() {
               {!isLoaded ? null : !isSignedIn ? (
                 <div className="flex flex-col gap-2">
                   <SignInButton mode="modal">
-                    <button className="text-left text-green-100 hover:text-white transition-colors font-medium py-2">
-                      Sign In
+                    <button className="text-right text-green-100 hover:text-white transition-colors font-medium py-2">
+                      تسجيل دخول
                     </button>
                   </SignInButton>
                   <SignUpButton mode="modal">
                     <button className="bg-white text-green-800 px-4 py-2 rounded-lg font-semibold hover:bg-green-50 transition-colors text-center">
-                      Sign Up
+                      إنشاء حساب
                     </button>
                   </SignUpButton>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <UserButton afterSignOutUrl="/" />
-                  <span className="text-green-100">Account</span>
+                  <span className="text-green-100">الحساب</span>
                 </div>
               )}
             </div>

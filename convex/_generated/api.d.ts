@@ -9,8 +9,11 @@
  */
 
 import type * as leads from "../leads.js";
+import type * as migrations from "../migrations.js";
+import type * as orders from "../orders.js";
 import type * as products from "../products.js";
 import type * as users from "../users.js";
+import type * as utils from "../utils.js";
 
 import type {
   ApiFromModules,
@@ -20,8 +23,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   leads: typeof leads;
+  migrations: typeof migrations;
+  orders: typeof orders;
   products: typeof products;
   users: typeof users;
+  utils: typeof utils;
 }>;
 
 /**
