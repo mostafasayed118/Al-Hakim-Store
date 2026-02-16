@@ -36,6 +36,7 @@ export default defineSchema({
     // Product details
     size: v.optional(v.string()), // e.g., "250ml", "500ml", "1L"
     stock: v.optional(v.number()), // Inventory tracking (optional for backward compatibility)
+    stockUnit: v.optional(v.string()), // Unit type: "piece", "bottle", "container", "carton", "jar", "liter", "kg"
     isActive: v.boolean(), // Soft delete / visibility toggle
 
     // Timestamps

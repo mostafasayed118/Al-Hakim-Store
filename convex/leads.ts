@@ -127,6 +127,8 @@ export const get = query({
 
 /**
  * Update lead status (admin only)
+ * When status changes to "converted", deduct stock from product
+ * When status changes FROM "converted" TO something else, restore stock
  */
 export const updateStatus = mutation({
   args: {
@@ -140,6 +142,41 @@ export const updateStatus = mutation({
     const lead = await ctx.db.get(args.leadId);
     if (!lead) {
       throw new Error("Lead not found");
+    }
+
+    const oldStatus = lead.status;
+    const newStatus = args.status;
+    const isConverting = newStatus === "converted" && oldStatus !== "converted";
+    const isReverting = oldStatus === "converted" && newStatus !== "converted";
+
+    // Handle stock deduction/restoration
+    if (isConverting || isReverting) {
+      // Fetch the product
+      const product = await ctx.db.get(lead.productId);
+      if (!product) {
+        throw new Error("المنتج غير موجود!");
+      }
+
+      // Get current stock (default to 0 if undefined)
+      const currentStock = product.stock ?? 0;
+
+      if (isConverting) {
+        // Deduct stock - check if available
+        if (currentStock <= 0) {
+          throw new Error("المخزون نفد! لا يمكن تحويل هذا الطلب.");
+        }
+
+        await ctx.db.patch(lead.productId, {
+          stock: currentStock - 1,
+          updatedAt: Date.now(),
+        });
+      } else if (isReverting) {
+        // Restore stock back
+        await ctx.db.patch(lead.productId, {
+          stock: currentStock + 1,
+          updatedAt: Date.now(),
+        });
+      }
     }
 
     await ctx.db.patch(args.leadId, {
