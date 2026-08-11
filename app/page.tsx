@@ -3,7 +3,7 @@
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { Leaf, MessageCircle, Loader2, Package, AlertCircle } from 'lucide-react';
+import { Leaf, MessageCircle, Loader2, Package, AlertCircle, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
@@ -15,6 +15,12 @@ export default function Home() {
   const createLead = useMutation(api.leads.create);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter products based on search
+  const filteredProducts = products?.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   const handleOrder = async (product: {
     _id: Id<"products">;
@@ -96,6 +102,28 @@ export default function Home() {
             منتجاتنا
           </h2>
 
+          {/* Search Bar */}
+          <div className="mb-8 max-w-md mx-auto">
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="البحث عن منتج..."
+                className="w-full pl-4 pr-10 py-3 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder:text-gray-500 shadow-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {products === undefined ? (
             <div className="flex justify-center items-center py-20">
               <Loader2 className="h-10 w-10 animate-spin text-green-600" />
@@ -105,9 +133,14 @@ export default function Home() {
               <Package className="h-16 w-16 text-green-300 mx-auto mb-4" />
               <p className="text-green-600 text-lg">لا توجد منتجات حالياً.</p>
             </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-20">
+              <Search className="h-16 w-16 text-green-300 mx-auto mb-4" />
+              <p className="text-green-600 text-lg">لا توجد نتائج مطابقة للبحث</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <div
                   key={product._id}
                   className="bg-white rounded-2xl shadow-lg overflow-hidden border border-green-100 hover:shadow-xl transition-shadow"

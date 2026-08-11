@@ -31,7 +31,8 @@ import {
   Pencil,
   X,
   Check,
-  MoreHorizontal
+  MoreHorizontal,
+  Search
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
@@ -225,6 +226,40 @@ function DropdownMenuItem({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * SearchInput Component
+ */
+function SearchInput({
+  value,
+  onChange,
+  placeholder = 'بحث...'
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-gray-900 placeholder:text-gray-500"
+      />
+      {value && (
+        <button
+          onClick={() => onChange('')}
+          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
   );
 }
 function DeleteConfirmDialog({
@@ -608,6 +643,10 @@ function AdminContent() {
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Search state
+  const [productSearch, setProductSearch] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
+
   // Cleanup preview URL to prevent memory leaks
   useEffect(() => {
     return () => {
@@ -701,6 +740,18 @@ function AdminContent() {
       toast.success('تم تحديث البيانات');
     }, 1000);
   };
+
+  // Filter products based on search
+  const filteredProducts = products?.filter(p => 
+    p.name.toLowerCase().includes(productSearch.toLowerCase())
+  ) || [];
+
+  // Filter leads based on search
+  const filteredLeads = leads?.filter(l => 
+    l.userName?.toLowerCase().includes(orderSearch.toLowerCase()) ||
+    l.productName.toLowerCase().includes(orderSearch.toLowerCase()) ||
+    l.status.includes(orderSearch)
+  ) || [];
 
   // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1155,10 +1206,19 @@ function AdminContent() {
 
             {/* Leads Table */}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-green-100">
-              <h2 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                الطلبات الأخيرة ({leads?.length || 0})
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <h2 className="text-xl font-bold text-green-900 flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  الطلبات الأخيرة ({filteredLeads.length || 0})
+                </h2>
+                <div className="w-full sm:w-64">
+                  <SearchInput
+                    value={orderSearch}
+                    onChange={setOrderSearch}
+                    placeholder="البحث في الطلبات..."
+                  />
+                </div>
+              </div>
 
               {leads === undefined ? (
                 <div className="flex items-center justify-center py-8">
@@ -1166,6 +1226,8 @@ function AdminContent() {
                 </div>
               ) : leads.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">لا توجد طلبات بعد</p>
+              ) : filteredLeads.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">لا توجد نتائج مطابقة للبحث</p>
               ) : (
                 <>
                   <div className="overflow-x-auto">
@@ -1181,7 +1243,7 @@ function AdminContent() {
                         </tr>
                       </thead>
                       <tbody>
-                        {leads.slice(page * pageSize, (page + 1) * pageSize).map((lead) => (
+                        {filteredLeads.slice(page * pageSize, (page + 1) * pageSize).map((lead) => (
                           <tr key={lead._id} className="border-b border-green-100 hover:bg-green-50">
                             <td className="py-3 px-2">
                               <div>
@@ -1262,7 +1324,7 @@ function AdminContent() {
                   </div>
 
                   {/* Pagination */}
-                  {leads.length > pageSize && (
+                  {filteredLeads.length > pageSize && (
                     <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-green-200">
                       <button
                         onClick={() => setPage(Math.max(0, page - 1))}
@@ -1273,11 +1335,11 @@ function AdminContent() {
                         السابق
                       </button>
                       <span className="text-sm text-gray-600 px-4">
-                        صفحة <span className="font-medium text-gray-900">{page + 1}</span> من <span className="font-medium text-gray-900">{Math.ceil(leads.length / pageSize)}</span>
+                        صفحة <span className="font-medium text-gray-900">{page + 1}</span> من <span className="font-medium text-gray-900">{Math.ceil(filteredLeads.length / pageSize)}</span>
                       </span>
                       <button
-                        onClick={() => setPage(Math.min(Math.ceil(leads.length / pageSize) - 1, page + 1))}
-                        disabled={page >= Math.ceil(leads.length / pageSize) - 1}
+                        onClick={() => setPage(Math.min(Math.ceil(filteredLeads.length / pageSize) - 1, page + 1))}
+                        disabled={page >= Math.ceil(filteredLeads.length / pageSize) - 1}
                         className="flex items-center gap-1 px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                       >
                         التالي
@@ -1293,10 +1355,19 @@ function AdminContent() {
           {/* Tab 2: Product Management */}
           <TabsContent value="products">
             <div className="bg-white rounded-xl p-6 shadow-sm border border-green-100">
-              <h2 className="text-xl font-bold text-green-900 mb-4 flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                إدارة المنتجات ({products?.length || 0})
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <h2 className="text-xl font-bold text-green-900 flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  إدارة المنتجات ({filteredProducts?.length || 0})
+                </h2>
+                <div className="w-full sm:w-64">
+                  <SearchInput
+                    value={productSearch}
+                    onChange={setProductSearch}
+                    placeholder="البحث في المنتجات..."
+                  />
+                </div>
+              </div>
 
               {products === undefined ? (
                 <div className="flex items-center justify-center py-8">
@@ -1304,6 +1375,8 @@ function AdminContent() {
                 </div>
               ) : products.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">لا توجد منتجات بعد</p>
+              ) : filteredProducts.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">لا توجد نتائج مطابقة للبحث</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -1318,7 +1391,7 @@ function AdminContent() {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((product) => (
+                      {filteredProducts.map((product) => (
                         <tr key={product._id} className="border-b border-green-100 hover:bg-green-50">
                           <td className="py-3 px-2">
                             {product.imageUrl ? (
