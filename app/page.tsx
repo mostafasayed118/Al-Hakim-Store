@@ -46,6 +46,7 @@ export default function Home() {
 
       // Build WhatsApp message in Egyptian Arabic
       const message = `سلام عليكم، أنا عايز أطلب المنتج ده: ${product.name} - بسعر: ${(product.price / 100).toFixed(2)} جنية - رقم الطلب: ${result.orderReference}`;
+      // Placeholder fallback — set NEXT_PUBLIC_WHATSAPP_NUMBER for the real number
       const phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '20XXXXXXXXXX';
 
       // ONLY redirect to WhatsApp after lead is successfully created
