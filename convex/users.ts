@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./utils";
 
 /**
  * Debug query to check the current user's JWT claims
@@ -39,13 +40,16 @@ export const debugIdentity = query({
 });
 
 /**
- * Get user by Clerk ID
+ * Get user by Clerk ID (admin only)
  */
 export const getByClerkId = query({
   args: {
     clerkId: v.string(),
   },
   handler: async (ctx, args) => {
+    // Authorization check - only admins can look up users by Clerk ID
+    await requireAdmin(ctx);
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
@@ -54,6 +58,35 @@ export const getByClerkId = query({
     return user;
   },
 });
+
+/**
+ * Authorization helper for webhook-only mutations (e.g. Clerk user sync).
+ *
+ * The Clerk webhook route verifies the svix signature before calling, so these
+ * mutations are legitimately invoked without a user identity. This guard:
+ * 1. Rejects any authenticated (client-side) caller outright.
+ * 2. Requires a shared secret that matches the Convex deployment env var,
+ *    so unauthenticated attackers cannot invoke them directly.
+ * SECURITY: This function ONLY uses server-side authentication context.
+ */
+async function requireWebhookSecret(ctx: QueryCtx | MutationCtx, secret: string) {
+  // Defense layer 1: a Clerk-authenticated client must not be able to call this.
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity) {
+    throw new Error("Forbidden: webhook mutations are server-only");
+  }
+
+  // Defense layer 2: shared-secret check.
+  const expected = process.env.CLERK_WEBHOOK_SECRET;
+  if (!expected) {
+    throw new Error(
+      "CLERK_WEBHOOK_SECRET is not configured in the Convex deployment",
+    );
+  }
+  if (secret !== expected) {
+    throw new Error("Forbidden: invalid webhook secret");
+  }
+}
 
 /**
  * Sync or create user from Clerk webhook
@@ -66,8 +99,12 @@ export const syncUser = mutation({
     name: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     role: v.optional(v.string()),
+    secret: v.string(),
   },
   handler: async (ctx, args) => {
+    // Authorization check - only the verified Clerk webhook may sync users
+    await requireWebhookSecret(ctx, args.secret);
+
     const now = Date.now();
 
     // Check if user already exists
@@ -113,6 +150,9 @@ export const updateRole = mutation({
     role: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Authorization check - only admins can change roles
+    await requireAdmin(ctx);
+
     // Update the user's role
     await ctx.db.patch(args.userId, {
       role: args.role,
@@ -129,8 +169,12 @@ export const updateRole = mutation({
 export const deleteUser = mutation({
   args: {
     clerkId: v.string(),
+    secret: v.string(),
   },
   handler: async (ctx, args) => {
+    // Authorization check - only the verified Clerk webhook may delete users
+    await requireWebhookSecret(ctx, args.secret);
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
@@ -151,6 +195,9 @@ export const deleteUser = mutation({
 export const listAll = query({
   args: {},
   handler: async (ctx) => {
+    // Authorization check - only admins can list all users
+    await requireAdmin(ctx);
+
     const users = await ctx.db.query("users").collect();
     return users;
   },

@@ -72,6 +72,7 @@ export async function POST(req: Request) {
           name,
           imageUrl: image_url,
           role,
+          secret: WEBHOOK_SECRET,
         });
         break;
       }
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
 
         await convex.mutation(api.users.deleteUser, {
           clerkId: id,
+          secret: WEBHOOK_SECRET,
         });
         break;
       }
