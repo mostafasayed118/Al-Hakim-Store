@@ -1,5 +1,32 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## 🔐 Security Model
+
+Al-Hakim Store is a **Clerk-authenticated storefront** with one privileged role
+(`admin`; everyone else is a customer). The public API is intentionally split
+into an open storefront and a guarded admin surface.
+
+| Claim | Reality |
+|---|---|
+| **Authentication** | ✅ Clerk via Convex auth; JWTs validated against the Clerk issuer (`CLERK_ISSUER_URL`) on the Convex deployment. |
+| **Admin-only functions** | ✅ `users.updateRole` / `listAll` / `getByClerkId` / `deleteUser` all call `requireAdmin()` — unauthenticated callers get "Unauthorized". |
+| **Webhook sync** | ✅ `users.syncUser` requires the shared `CLERK_WEBHOOK_SECRET` ("Forbidden: invalid webhook secret") — anonymous callers can't mint accounts, let alone admins (escalation closed). |
+| **Public storefront (by design)** | ✅ `products.list` / `products.get` (catalog) and `orders.create` (guest checkout) are anonymous by design. |
+
+**Required environment variables:**
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | `.env.local` | Clerk client/server |
+| `CLERK_WEBHOOK_SECRET` | Convex deployment env | guards `users.syncUser` |
+| `CLERK_ISSUER_URL` | Convex deployment env | Convex validates Clerk JWTs |
+| `NEXT_PUBLIC_CONVEX_URL` / `CONVEX_DEPLOYMENT` | `.env.local` | Convex client |
+
+⚠️ **Known hardening items** (from the 2026 security audit): `products.generateUploadUrl`
+mints storage upload URLs anonymously, `products.getWithStock` exposes
+stock/inventory data, and `checkProductName` is anonymously callable. Guest
+`orders.create` also decrements stock without authentication (abuse vector).
+
 ## Getting Started
 
 First, run the development server:
