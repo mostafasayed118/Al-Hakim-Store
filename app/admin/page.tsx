@@ -23,11 +23,9 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertTriangle,
-  AlertCircle,
   Box,
   RefreshCw,
   LayoutDashboard,
-  ShoppingCart,
   Pencil,
   X,
   Check,
@@ -76,7 +74,7 @@ function TabsList({
   
   // Convert children to array and filter for TabsTrigger
   const triggers = React.Children.toArray(children).filter(
-    (child) => React.isValidElement(child) && (child.type === TabsTrigger || (child.type as any)?.name === 'TabsTrigger')
+    (child) => React.isValidElement(child) && (child.type === TabsTrigger || (child.type as { name?: string })?.name === 'TabsTrigger')
   );
   
   return (
@@ -105,7 +103,6 @@ function TabsList({
 
 function TabsTrigger({ 
   children, 
-  value 
 }: { 
   children: React.ReactNode; 
   value: string 
@@ -148,16 +145,16 @@ function DropdownMenu({ children }: { children: React.ReactNode }) {
     <div className="relative" ref={ref}>
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
-          if ((child.type as any)?.name === 'DropdownMenuTrigger') {
-            return React.cloneElement(child as any, { onClick: () => setIsOpen(!isOpen), isOpen });
+          if ((child.type as { name?: string })?.name === 'DropdownMenuTrigger') {
+            return React.cloneElement(child as React.ReactElement<{ onClick?: () => void; isOpen?: boolean }>, { onClick: () => setIsOpen(!isOpen), isOpen });
           }
-          if ((child.type as any)?.name === 'DropdownMenuContent') {
+          if ((child.type as { name?: string })?.name === 'DropdownMenuContent') {
             if (isOpen) {
-              return React.cloneElement(child as any, { isOpen });
+              return React.cloneElement(child as React.ReactElement<{ isOpen?: boolean }>, { isOpen });
             }
             return null;
           }
-          if ((child.type as any)?.name === 'DropdownMenuItem') {
+          if ((child.type as { name?: string })?.name === 'DropdownMenuItem') {
             return child;
           }
         }
@@ -169,7 +166,6 @@ function DropdownMenu({ children }: { children: React.ReactNode }) {
 
 function DropdownMenuTrigger({ 
   children, 
-  isOpen, 
   onClick 
 }: { 
   children: React.ReactNode; 
@@ -342,7 +338,6 @@ function EditProductDialog({
   isSubmitting,
   nameError,
   isCheckingName,
-  selectedImage,
   imagePreview,
   onImageSelect,
   onRemoveImage,
@@ -406,6 +401,7 @@ function EditProductDialog({
         <div className="mb-4 flex justify-center">
           {displayImage ? (
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={displayImage}
                 alt={product.name}
@@ -879,10 +875,10 @@ function AdminContent() {
       toast.success('تم حذف المنتج نهائياً');
       setDeleteDialogOpen(false);
       setProductToDelete(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting product:', error);
       // Show the actual error message from backend
-      const errorMessage = error?.message || 'حدث خطأ أثناء الحذف';
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء الحذف';
       toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
@@ -1294,9 +1290,9 @@ function AdminContent() {
                                       } else {
                                         toast.success('تم تحديث الحالة');
                                       }
-                                    } catch (error: any) {
+                                    } catch (error) {
                                       // Show the actual error message from backend
-                                      const errorMessage = error?.message || 'حدث خطأ أثناء التحديث';
+                                      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء التحديث';
                                       toast.error(errorMessage);
                                     }
                                   }}
@@ -1395,6 +1391,7 @@ function AdminContent() {
                         <tr key={product._id} className="border-b border-green-100 hover:bg-green-50">
                           <td className="py-3 px-2">
                             {product.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
@@ -1469,8 +1466,8 @@ function AdminContent() {
                                 try {
                                   await toggleProductActive({ productId: product._id });
                                   toast.success(product.isActive ? 'تم إخفاء المنتج' : 'تم إظهار المنتج');
-                                } catch (error: any) {
-                                  toast.error(error?.message || 'حدث خطأ');
+                                } catch (error) {
+                                  toast.error(error instanceof Error ? error.message : 'حدث خطأ');
                                 }
                               }}
                               className={`px-3 py-1 rounded-full text-xs cursor-pointer hover:opacity-80 transition-opacity ${
@@ -1643,6 +1640,7 @@ function AdminContent() {
                     <div className="mt-3 p-4 bg-green-50 rounded-lg border border-green-200">
                       <div className="flex items-start gap-4">
                         {/* Preview image */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={previewUrl}
                           alt="معاينة الصورة"

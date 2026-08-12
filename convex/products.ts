@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./utils";
+import type { Doc } from "./_generated/dataModel";
 
 /**
  * Get all active products (public query - no auth required)
@@ -172,7 +173,7 @@ export const update = mutation({
     }
 
     // Build update object with only provided fields
-    const updateData: Record<string, any> = {
+    const updateData: Partial<Doc<"products">> = {
       updatedAt: Date.now(),
     };
 

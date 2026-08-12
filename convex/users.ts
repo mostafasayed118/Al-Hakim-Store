@@ -19,6 +19,12 @@ export const debugIdentity = query({
     }
     
     // Return all claims for debugging
+    const claims = identity as unknown as {
+      m?: unknown;
+      metadata?: unknown;
+      role?: unknown;
+      publicMetadata?: unknown;
+    };
     return {
       authenticated: true,
       subject: identity.subject,
@@ -29,11 +35,11 @@ export const debugIdentity = query({
       allClaims: {
         ...identity,
         // Explicitly check for metadata claim
-        m: (identity as any).m,
-        metadata: (identity as any).metadata,
+        m: claims.m,
+        metadata: claims.metadata,
         // Check other possible locations
-        role: (identity as any).role,
-        publicMetadata: (identity as any).publicMetadata,
+        role: claims.role,
+        publicMetadata: claims.publicMetadata,
       }
     };
   },

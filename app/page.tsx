@@ -148,6 +148,7 @@ export default function Home() {
                   {/* Product Image */}
                   <div className="aspect-square bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center relative">
                     {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={product.imageUrl}
                         alt={product.name}

@@ -20,16 +20,9 @@ export async function requireAdmin(ctx: QueryCtx | MutationCtx) {
     throw new Error("Unauthorized: يجب تسجيل الدخول");
   }
 
-  // Debug: Log the entire identity object to see available claims
-  console.log("Identity object:", JSON.stringify(identity, null, 2));
-
   // The role is stored in the 'm' claim (metadata) from the JWT template
-  const metadata = (identity as any).m;
+  const metadata = (identity as unknown as { m?: { role?: string } }).m;
   const role = metadata?.role;
-
-  // Debug: Log the role extraction
-  console.log("Metadata:", metadata);
-  console.log("Role:", role);
 
   if (role !== "admin") {
     throw new Error("Forbidden: هذه الميزة متاحة للمسؤولين فقط");
