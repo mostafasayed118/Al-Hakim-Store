@@ -257,6 +257,9 @@ export const permanentDelete = mutation({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    // Admin only — as a public mutation anyone could mint storage upload URLs
+    // and fill the project's storage with arbitrary files.
+    await requireAdmin(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -425,6 +428,9 @@ export const checkProductName = query({
     excludeId: v.optional(v.id("products")),
   },
   handler: async (ctx, args) => {
+    // Admin only — name-existence oracle used by the admin product form.
+    await requireAdmin(ctx);
+
     const normalizedName = args.name.trim().toLowerCase();
     
     // Query all active products
