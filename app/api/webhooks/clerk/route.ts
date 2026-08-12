@@ -7,7 +7,21 @@ import type { WebhookEvent } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Lazily constructed: the webhook route only needs the client at request
+// time (Vercel sets NEXT_PUBLIC_CONVEX_URL), and constructing it at module
+// scope would fail `next build` in environments without the env var (CI).
+let convex: ConvexHttpClient | null = null;
+
+function getConvex(): ConvexHttpClient {
+  if (!convex) {
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+      throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
+    }
+    convex = new ConvexHttpClient(url);
+  }
+  return convex;
+}
 
 export async function POST(req: Request) {
   // Get the webhook secret from environment variables
@@ -66,7 +80,7 @@ export async function POST(req: Request) {
         const name = [first_name, last_name].filter(Boolean).join(" ") || undefined;
         const role = (public_metadata as { role?: string })?.role;
 
-        await convex.mutation(api.users.syncUser, {
+        await getConvex().mutation(api.users.syncUser, {
           clerkId: id,
           email,
           name,
@@ -84,7 +98,7 @@ export async function POST(req: Request) {
           return new Response("Error: Missing ID", { status: 400 });
         }
 
-        await convex.mutation(api.users.deleteUser, {
+        await getConvex().mutation(api.users.deleteUser, {
           clerkId: id,
           secret: WEBHOOK_SECRET,
         });
