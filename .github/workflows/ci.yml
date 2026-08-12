@@ -35,8 +35,15 @@ jobs:
 
       - name: Production build
         env:
-          # Public value (baked into the client bundle) — required at build
-          # time because the Convex provider prerenders the root layout.
-          # Set as a repo variable; if missing, the build fails loudly.
+          # Public values (baked into the client bundle) — required at build
+          # time because the Convex provider prerenders the root layout and
+          # Clerk's provider/middleware needs the publishable key. All set
+          # as repo variables; if any is missing, the build fails loudly.
           NEXT_PUBLIC_CONVEX_URL: ${{ vars.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_CONVEX_SITE_URL: ${{ vars.NEXT_PUBLIC_CONVEX_SITE_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${{ vars.NEXT_PUBLIC_CLERK_SIGN_IN_URL }}
+          NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${{ vars.NEXT_PUBLIC_CLERK_SIGN_UP_URL }}
+          NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: ${{ vars.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL }}
+          NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: ${{ vars.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL }}
         run: npm run build
