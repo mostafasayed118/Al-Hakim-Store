@@ -3,49 +3,6 @@ import { v } from "convex/values";
 import { requireAdmin } from "./utils";
 
 /**
- * Debug query to check the current user's JWT claims
- * This helps diagnose authentication issues
- */
-export const debugIdentity = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    
-    if (!identity) {
-      return { 
-        authenticated: false, 
-        message: "No identity found - user not authenticated" 
-      };
-    }
-    
-    // Return all claims for debugging
-    const claims = identity as unknown as {
-      m?: unknown;
-      metadata?: unknown;
-      role?: unknown;
-      publicMetadata?: unknown;
-    };
-    return {
-      authenticated: true,
-      subject: identity.subject,
-      issuer: identity.issuer,
-      name: identity.name,
-      email: identity.email,
-      // Include all raw claims
-      allClaims: {
-        ...identity,
-        // Explicitly check for metadata claim
-        m: claims.m,
-        metadata: claims.metadata,
-        // Check other possible locations
-        role: claims.role,
-        publicMetadata: claims.publicMetadata,
-      }
-    };
-  },
-});
-
-/**
  * Get user by Clerk ID (admin only)
  */
 export const getByClerkId = query({
