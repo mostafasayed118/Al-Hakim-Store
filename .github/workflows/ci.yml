@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   check:
-    name: Typecheck & Lint
+    name: Typecheck, Lint & Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -32,3 +32,6 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+      - name: Production build
+        run: npm run build
